@@ -1,0 +1,34 @@
+{
+  "balance": 200.0,
+  "todayPct": 0.0,
+  "multiplier": 1.0,
+  "mode": "PAPER",
+  "agents": [
+    {
+      "name": "Scanner",
+      "status": "running",
+      "subtitle": "Listening for graduations"
+    },
+    {
+      "name": "Auditor",
+      "status": "running",
+      "subtitle": "0 taken apart"
+    },
+    {
+      "name": "Analyst",
+      "status": "running",
+      "subtitle": "Scoring"
+    },
+    {
+      "name": "Executor",
+      "status": "running",
+      "subtitle": "0 trades"
+    },
+    {
+      "name": "Risk",
+      "status": "running",
+      "subtitle": "Guarding"
+    }
+  ],
+  "updatedAt": "2026-11-06T01:46:13Z"
+}

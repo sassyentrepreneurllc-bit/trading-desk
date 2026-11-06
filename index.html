@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <title>Trading Desk</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div id="err" class="err" hidden></div>
+  <header class="nav">
+    <div class="nav-left"><span class="avatar" id="avatar">S</span><span class="brand">Grok Bot ›</span></div>
+    <div class="nav-right"><span class="bell" id="bell">○</span></div>
+  </header>
+  <main id="home" class="tab">
+    <div class="balance-row">
+      <div id="balance" class="balance">$0.00</div>
+      <span id="paper" class="pill orange" hidden>PAPER</span>
+    </div>
+    <div class="subrow"><span id="today" class="today">+0.00%</span><span id="mult" class="pill green">1.00×</span></div>
+    <canvas id="chart" width="390" height="180"></canvas>
+    <div class="ranges" id="ranges">
+      <button data-r="LIVE" class="on">LIVE</button>
+      <button data-r="1H">1H</button><button data-r="4H">4H</button>
+      <button data-r="1D">1D</button><button data-r="1W">1W</button><button data-r="ALL">ALL</button>
+    </div>
+    <h2>Agents · <span id="agentCount">0</span> running</h2>
+    <div id="agents" class="carousel"></div>
+    <h2>Activity · See all</h2>
+    <div id="activity" class="activity"></div>
+  </main>
+  <nav class="tabs">
+    <button class="on" data-tab="home">Home</button>
+    <button data-tab="agentsTab">Agents</button>
+    <button data-tab="activityTab">Activity</button>
+    <button data-tab="account">Account</button>
+  </nav>
+  <script src="chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
