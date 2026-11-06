@@ -1,4 +1,14 @@
 {
   "agent": "Analyst",
-  "rows": []
+  "rows": [
+    {
+      "id": 1,
+      "ts": "2026-11-06T01:34:12Z",
+      "kind": "score",
+      "mint": "DemoCoin1111111111111111111111111111111111",
+      "title": "78",
+      "subtitle": "rules",
+      "value": "78"
+    }
+  ]
 }

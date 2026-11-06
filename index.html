@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
   <meta name="theme-color" content="#000000" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Desk" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <title>Trading Desk</title>
@@ -14,33 +15,170 @@
 </head>
 <body>
   <div id="err" class="err" hidden></div>
-  <header class="nav">
-    <div class="nav-left"><span class="avatar" id="avatar">S</span><span class="brand">Grok Bot ›</span></div>
-    <div class="nav-right"><span class="bell" id="bell">○</span></div>
-  </header>
-  <main id="home" class="tab">
+
+  <!-- HOME -->
+  <main id="view-home" class="view tab-view on">
+    <header class="nav">
+      <div class="nav-left"><span class="avatar" id="avatar">S</span><span class="brand">Grok Bot ›</span></div>
+      <div class="nav-right"><span class="bell" id="bell" title="Alerts via Telegram">○</span></div>
+    </header>
     <div class="balance-row">
       <div id="balance" class="balance">$0.00</div>
       <span id="paper" class="pill orange" hidden>PAPER</span>
     </div>
-    <div class="subrow"><span id="today" class="today">+0.00%</span><span id="mult" class="pill green">1.00×</span></div>
-    <canvas id="chart" width="390" height="180"></canvas>
-    <div class="ranges" id="ranges">
-      <button data-r="LIVE" class="on">LIVE</button>
-      <button data-r="1H">1H</button><button data-r="4H">4H</button>
-      <button data-r="1D">1D</button><button data-r="1W">1W</button><button data-r="ALL">ALL</button>
+    <div class="subrow">
+      <span id="today" class="today">+0.00%</span>
+      <span id="mult" class="pill green">1.00×</span>
     </div>
-    <h2>Agents · <span id="agentCount">0</span> running</h2>
-    <div id="agents" class="carousel"></div>
-    <h2>Activity · See all</h2>
-    <div id="activity" class="activity"></div>
+    <canvas id="chart" class="line-chart" width="390" height="180"></canvas>
+    <div class="ranges" id="ranges">
+      <button type="button" data-r="LIVE" class="on">LIVE</button>
+      <button type="button" data-r="1H">1H</button>
+      <button type="button" data-r="4H">4H</button>
+      <button type="button" data-r="1D">1D</button>
+      <button type="button" data-r="1W">1W</button>
+      <button type="button" data-r="ALL">ALL</button>
+    </div>
+    <div class="sec-head">
+      <h2>Agents · <span id="agentCount">0</span> running</h2>
+      <button type="button" class="linkish" data-goto="agents">See all</button>
+    </div>
+    <div id="agentsCarousel" class="carousel"></div>
+    <div class="sec-head">
+      <h2>Activity</h2>
+      <button type="button" class="linkish" data-goto="activity">See all</button>
+    </div>
+    <div id="activityPreview" class="activity"></div>
   </main>
-  <nav class="tabs">
-    <button class="on" data-tab="home">Home</button>
-    <button data-tab="agentsTab">Agents</button>
-    <button data-tab="activityTab">Activity</button>
-    <button data-tab="account">Account</button>
+
+  <!-- AGENTS TAB -->
+  <main id="view-agents" class="view tab-view" hidden>
+    <header class="page-head"><h1>Agents</h1></header>
+    <div id="agentsList" class="list-pad"></div>
+  </main>
+
+  <!-- ACTIVITY TAB -->
+  <main id="view-activity" class="view tab-view" hidden>
+    <header class="page-head"><h1>Activity</h1></header>
+    <div id="activityList" class="activity list-pad"></div>
+  </main>
+
+  <!-- ACCOUNT TAB -->
+  <main id="view-account" class="view tab-view" hidden>
+    <header class="page-head"><h1>Account</h1></header>
+    <div class="list-pad account">
+      <section class="card">
+        <div class="row-line">
+          <div>
+            <div class="label">Mode</div>
+            <div id="acctMode" class="value">PAPER</div>
+          </div>
+          <span id="acctModePill" class="pill orange">PAPER</span>
+        </div>
+        <p class="hint" id="acctModeHint">Plan B — switch LIVE via Telegram / bot (no POST from this app).</p>
+      </section>
+      <section class="card">
+        <div class="label">Stack</div>
+        <div id="acctStack" class="value big">$200.00</div>
+        <p class="hint">Read-only on Plan B (from account.json).</p>
+      </section>
+      <section class="card tap" id="acctProfile">
+        <div class="row-line">
+          <div>
+            <div class="label">FOMO profile</div>
+            <div id="acctHandle" class="value">@sstest</div>
+          </div>
+          <span class="chev">›</span>
+        </div>
+      </section>
+      <section class="card tap" id="acctInvite">
+        <div class="row-line">
+          <div>
+            <div class="label">Invite</div>
+            <div class="value">Share FOMO signup</div>
+          </div>
+          <span class="chev">›</span>
+        </div>
+      </section>
+      <section class="card">
+        <div class="label">Alerts</div>
+        <div id="acctTg" class="value">Telegram · not connected</div>
+        <p class="hint">Alerts via Telegram (Plan B — no web push).</p>
+      </section>
+      <section class="card">
+        <div class="label">Hosting</div>
+        <div id="acctHost" class="value">Plan B</div>
+        <p class="hint" id="acctHostNote"></p>
+      </section>
+      <section class="card">
+        <div class="sec-head tight"><h2>Settings</h2><span class="muted">read-only</span></div>
+        <div id="settingsGroups"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- AGENT DECISIONS (overlay) -->
+  <main id="view-agent" class="view overlay" hidden>
+    <header class="page-head">
+      <button type="button" class="back" data-back>‹</button>
+      <h1 id="agentTitle">Agent</h1>
+    </header>
+    <div id="agentDecisions" class="activity list-pad"></div>
+  </main>
+
+  <!-- AUDITOR -->
+  <main id="view-audit" class="view overlay" hidden>
+    <header class="page-head">
+      <button type="button" class="back" data-back>‹</button>
+      <h1>Auditor</h1>
+    </header>
+    <div class="list-pad">
+      <div id="auditStatus" class="audit-status"></div>
+      <div id="auditLayers" class="layers"></div>
+      <a id="auditFomo" class="btn primary" href="#" target="_blank" rel="noopener" hidden>Open on FOMO</a>
+    </div>
+  </main>
+
+  <!-- COIN -->
+  <main id="view-coin" class="view overlay" hidden>
+    <header class="page-head">
+      <button type="button" class="back" data-back>‹</button>
+      <h1 id="coinTitle">Coin</h1>
+    </header>
+    <div class="list-pad coin">
+      <div class="coin-meta">
+        <div id="coinName" class="coin-name">—</div>
+        <div class="coin-tags">
+          <span class="pill blue">Solana</span>
+          <span id="coinAge" class="pill">—</span>
+          <span id="coinShield" class="pill">shield —</span>
+        </div>
+      </div>
+      <div class="coin-price-row">
+        <div id="coinPrice" class="coin-price">$0</div>
+        <div id="coinPct" class="today">—</div>
+      </div>
+      <canvas id="candleChart" class="candle-chart" width="390" height="220"></canvas>
+      <div class="stats-grid" id="coinStats"></div>
+      <section class="card" id="posCard" hidden>
+        <div class="label">Position</div>
+        <div id="posBody"></div>
+      </section>
+      <section class="card" id="exitCard" hidden>
+        <div class="label">Exit</div>
+        <div id="exitBody"></div>
+      </section>
+      <a id="coinFomo" class="btn primary" href="#" target="_blank" rel="noopener" hidden>Buy on FOMO</a>
+    </div>
+  </main>
+
+  <nav class="tabs" id="tabBar">
+    <button type="button" class="on" data-tab="home"><span class="ico">⌂</span>Home</button>
+    <button type="button" data-tab="agents"><span class="ico">◎</span>Agents</button>
+    <button type="button" data-tab="activity"><span class="ico">≡</span>Activity</button>
+    <button type="button" data-tab="account"><span class="ico">☺</span>Account</button>
   </nav>
+
   <script src="chart.js"></script>
   <script src="app.js"></script>
 </body>

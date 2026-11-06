@@ -1,18 +1,18 @@
 {
-  "balance": 200.0,
-  "todayPct": 0.0,
-  "multiplier": 1.0,
+  "balance": 208.5,
+  "todayPct": 4.25,
+  "multiplier": 1.04,
   "mode": "PAPER",
   "agents": [
     {
       "name": "Scanner",
       "status": "running",
-      "subtitle": "Listening for graduations"
+      "subtitle": "1 graduation"
     },
     {
       "name": "Auditor",
       "status": "running",
-      "subtitle": "0 taken apart"
+      "subtitle": "2 taken apart"
     },
     {
       "name": "Analyst",
@@ -22,7 +22,7 @@
     {
       "name": "Executor",
       "status": "running",
-      "subtitle": "0 trades"
+      "subtitle": "1 trade"
     },
     {
       "name": "Risk",

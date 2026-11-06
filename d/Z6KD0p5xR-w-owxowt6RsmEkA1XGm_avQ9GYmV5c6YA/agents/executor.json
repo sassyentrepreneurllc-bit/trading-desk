@@ -1,4 +1,14 @@
 {
   "agent": "Executor",
-  "rows": []
+  "rows": [
+    {
+      "id": 1,
+      "ts": "2026-11-06T01:46:12Z",
+      "kind": "buy",
+      "mint": "DemoCoin1111111111111111111111111111111111",
+      "title": "PAPER buy",
+      "subtitle": "$47.50",
+      "value": "$47.50"
+    }
+  ]
 }
