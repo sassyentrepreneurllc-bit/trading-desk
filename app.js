@@ -1,23 +1,58 @@
 (function () {
   'use strict';
 
-  // ---- data path from #d= / localStorage (never hardcode) ----
+  // ---- data source from hash / localStorage (never hardcode secrets) ----
+  // Primary:  #j=<ns>/<id>   or   #data=https://brewpage.app/api/json/<ns>/<id>
+  // Fallback: #d=<relative-path> under Pages d/ (local/static)
+  // Views:    coin/MINT · audit/MINT · agent/Name · home|agents|activity|account
+  //           also &tab= / &view= query forms on the same hash
+  function parseSourceFromRaw(raw) {
+    const params = new URLSearchParams(raw.includes('=') ? raw : '');
+    let j = params.get('j');
+    let data = params.get('data');
+    const d = params.get('d');
+    if (j) {
+      j = j.replace(/^\/+/, '');
+      const url = 'https://brewpage.app/api/json/' + j;
+      return { kind: 'brew', url, j, d: null };
+    }
+    if (data) {
+      try {
+        const u = new URL(data);
+        if (u.hostname.endsWith('brewpage.app') && u.pathname.includes('/api/json/')) {
+          const parts = u.pathname.split('/').filter(Boolean); // api, json, ns, id
+          const idx = parts.indexOf('json');
+          const ns = parts[idx + 1];
+          const id = parts[idx + 2];
+          if (ns && id) {
+            return { kind: 'brew', url: `https://brewpage.app/api/json/${ns}/${id}`, j: `${ns}/${id}`, d: null };
+          }
+        }
+      } catch (_) {}
+      return { kind: 'brew', url: data, j: null, d: null };
+    }
+    if (d) return { kind: 'files', url: null, j: null, d };
+    return null;
+  }
+
   function parseHash() {
     const raw = (location.hash || '').replace(/^#/, '');
-    // Forms:
-    //   d=PATH
-    //   d=PATH&tab=agents
-    //   coin/MINT
-    //   audit/MINT
-    //   agent/Name
-    //   home|agents|activity|account
     if (raw.startsWith('coin/')) return { view: 'coin', mint: decodeURIComponent(raw.slice(5)) };
     if (raw.startsWith('audit/')) return { view: 'audit', mint: decodeURIComponent(raw.slice(6)) };
     if (raw.startsWith('agent/')) return { view: 'agent', name: decodeURIComponent(raw.slice(6)) };
     if (/^(home|agents|activity|account)$/.test(raw)) return { view: raw };
     const params = new URLSearchParams(raw);
-    if (params.get('d')) {
-      localStorage.setItem('desk_data_path', params.get('d'));
+    const src = parseSourceFromRaw(raw);
+    if (src) {
+      if (src.kind === 'brew') {
+        localStorage.setItem('desk_data_url', src.url);
+        if (src.j) localStorage.setItem('desk_data_j', src.j);
+        localStorage.removeItem('desk_data_path');
+      } else if (src.d) {
+        localStorage.setItem('desk_data_path', src.d);
+        localStorage.removeItem('desk_data_url');
+        localStorage.removeItem('desk_data_j');
+      }
     }
     const tab = params.get('tab');
     const view = params.get('view');
@@ -30,14 +65,26 @@
     return { view: 'home' };
   }
 
+  let dataUrl = localStorage.getItem('desk_data_url') || '';
   let dataPath = localStorage.getItem('desk_data_path') || '';
-  // bootstrap d= from hash if present
+  // bootstrap from hash if present
   {
     const raw = (location.hash || '').replace(/^#/, '');
-    const params = new URLSearchParams(raw.includes('=') ? raw : '');
-    if (params.get('d')) {
-      dataPath = params.get('d');
-      localStorage.setItem('desk_data_path', dataPath);
+    const src = parseSourceFromRaw(raw);
+    if (src) {
+      if (src.kind === 'brew') {
+        dataUrl = src.url;
+        dataPath = '';
+        localStorage.setItem('desk_data_url', dataUrl);
+        if (src.j) localStorage.setItem('desk_data_j', src.j);
+        localStorage.removeItem('desk_data_path');
+      } else if (src.d) {
+        dataPath = src.d;
+        dataUrl = '';
+        localStorage.setItem('desk_data_path', dataPath);
+        localStorage.removeItem('desk_data_url');
+        localStorage.removeItem('desk_data_j');
+      }
     }
   }
 
@@ -45,12 +92,12 @@
   const errEl = document.getElementById('err');
   let lastOk = null, retry = 5;
   let range = 'LIVE';
-  let cache = { state: null, chart: null, activity: null, account: null, settings: null };
+  let cache = { state: null, chart: null, activity: null, account: null, settings: null, agents: {}, coin: {}, audit: {} };
   let pollTimer = null;
+  let bundleMode = !!dataUrl;
 
   function showErr(msg) { errEl.hidden = false; errEl.textContent = msg; }
   function hideErr() { errEl.hidden = true; }
-
   function money(n) {
     return '$' + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -76,21 +123,38 @@
   }
 
   async function loadCore() {
-    const b = base();
-    if (!b) {
-      showErr('Missing data path. Open the link that ends with #d=…');
-      return;
-    }
     try {
-      const [state, chart, activity, account, settings] = await Promise.all([
-        fetchJson(`${b}/state.json`),
-        fetchJson(`${b}/chart.json`).catch(() => ({ points: [], marks: [], start: null })),
-        fetchJson(`${b}/activity.json`).catch(() => ({ rows: [] })),
-        fetchJson(`${b}/account.json`).catch(() => null),
-        fetchJson(`${b}/settings.json`).catch(() => ({})),
-      ]);
-      hideErr(); lastOk = new Date(); retry = 5;
-      cache = { state, chart, activity, account, settings };
+      if (dataUrl) {
+        bundleMode = true;
+        const bundle = await fetchJson(dataUrl);
+        hideErr(); lastOk = new Date(); retry = 5;
+        cache = {
+          state: bundle.state || null,
+          chart: bundle.chart || { points: [], marks: [], start: null },
+          activity: bundle.activity || { rows: [] },
+          account: bundle.account || null,
+          settings: bundle.settings || {},
+          agents: bundle.agents || {},
+          coin: bundle.coin || {},
+          audit: bundle.audit || {},
+        };
+      } else {
+        bundleMode = false;
+        const b = base();
+        if (!b) {
+          showErr('Missing data source. Open the link that ends with #j=… or #d=…');
+          return;
+        }
+        const [state, chart, activity, account, settings] = await Promise.all([
+          fetchJson(`${b}/state.json`),
+          fetchJson(`${b}/chart.json`).catch(() => ({ points: [], marks: [], start: null })),
+          fetchJson(`${b}/activity.json`).catch(() => ({ rows: [] })),
+          fetchJson(`${b}/account.json`).catch(() => null),
+          fetchJson(`${b}/settings.json`).catch(() => ({})),
+        ]);
+        hideErr(); lastOk = new Date(); retry = 5;
+        cache = { state, chart, activity, account, settings, agents: {}, coin: {}, audit: {} };
+      }
       renderHome();
       renderAgentsTab();
       renderActivityTab();
@@ -100,6 +164,30 @@
       const t = lastOk ? lastOk.toLocaleTimeString() : 'never';
       showErr(`Desk offline · retrying in ${retry}s · last update ${t}`);
     }
+  }
+
+  async function loadAgentDecisions(name) {
+    if (bundleMode) {
+      const key = String(name || '').toLowerCase();
+      return (cache.agents && (cache.agents[key] || cache.agents[name])) || { rows: [] };
+    }
+    const b = base();
+    if (!b) return { rows: [] };
+    return fetchJson(`${b}/agents/${name.toLowerCase()}.json`);
+  }
+
+  async function loadAudit(mint) {
+    if (bundleMode) return (cache.audit && cache.audit[mint]) || null;
+    const b = base();
+    if (!b) return null;
+    return fetchJson(`${b}/audit/${mint}.json`);
+  }
+
+  async function loadCoin(mint) {
+    if (bundleMode) return (cache.coin && cache.coin[mint]) || null;
+    const b = base();
+    if (!b) return null;
+    return fetchJson(`${b}/coin/${mint}.json`);
   }
 
   function filterPoints(points) {
@@ -258,11 +346,9 @@
     document.getElementById('agentTitle').textContent = name;
     const box = document.getElementById('agentDecisions');
     box.innerHTML = '<div class="loading"></div>';
-    const b = base();
-    if (!b) return;
     try {
-      const data = await fetchJson(`${b}/agents/${name.toLowerCase()}.json`);
-      const rows = data.rows || [];
+      const data = await loadAgentDecisions(name);
+      const rows = (data && data.rows) || [];
       box.innerHTML = rows.length ? rows.map(activityRowHtml).join('') : '<div class="empty">No decisions yet</div>';
       wireActivityClicks(box);
     } catch (_) {
@@ -279,10 +365,9 @@
     status.textContent = 'Loading…';
     layersEl.innerHTML = '';
     fomo.hidden = true;
-    const b = base();
-    if (!b) return;
     try {
-      const audit = await fetchJson(`${b}/audit/${mint}.json`);
+      const audit = await loadAudit(mint);
+      if (!audit) throw new Error('missing');
       // animate live cyan → green/red
       const layers = audit.layers || [];
       layersEl.innerHTML = layers.map(l => `
@@ -299,8 +384,8 @@
           status.textContent = ok ? 'cleared · 8/8' : 'rejected · ' + layers.filter(l => l.pass).length + '/8';
           status.className = 'audit-status ' + (ok ? 'ok' : 'bad');
           // FOMO from coin json only
-          fetchJson(`${b}/coin/${mint}.json`).then(coin => {
-            if (isFomoUrl(coin.coin_url)) {
+          loadCoin(mint).then(coin => {
+            if (coin && isFomoUrl(coin.coin_url)) {
               fomo.href = coin.coin_url;
               fomo.hidden = false;
               fomo.textContent = 'Open on FOMO';
@@ -330,10 +415,9 @@
   async function openCoin(mint) {
     showOverlay('coin');
     document.getElementById('coinTitle').textContent = shortMint(mint);
-    const b = base();
-    if (!b) return;
     try {
-      const coin = await fetchJson(`${b}/coin/${mint}.json`);
+      const coin = await loadCoin(mint);
+      if (!coin) throw new Error('missing');
       document.getElementById('coinName').textContent = coin.name || coin.symbol || shortMint(mint);
       document.getElementById('coinTitle').textContent = coin.symbol || coin.name || shortMint(mint);
       const age = coin.age != null ? (coin.age < 60 ? Math.round(coin.age) + 'm' : (coin.age / 60).toFixed(1) + 'h') : '—';
@@ -441,13 +525,23 @@
   }
 
   function route() {
-    // refresh dataPath if hash carries d=
     const raw = (location.hash || '').replace(/^#/, '');
-    if (raw.includes('d=')) {
-      const params = new URLSearchParams(raw);
-      if (params.get('d')) {
-        dataPath = params.get('d');
+    const src = parseSourceFromRaw(raw);
+    if (src) {
+      if (src.kind === 'brew') {
+        dataUrl = src.url;
+        dataPath = '';
+        bundleMode = true;
+        localStorage.setItem('desk_data_url', dataUrl);
+        if (src.j) localStorage.setItem('desk_data_j', src.j);
+        localStorage.removeItem('desk_data_path');
+      } else if (src.d) {
+        dataPath = src.d;
+        dataUrl = '';
+        bundleMode = false;
         localStorage.setItem('desk_data_path', dataPath);
+        localStorage.removeItem('desk_data_url');
+        localStorage.removeItem('desk_data_j');
       }
     }
     const r = parseHash();
@@ -461,7 +555,7 @@
   document.querySelectorAll('#tabBar [data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
-      // preserve d= if present in a clean hash
+      // tab-only hash; data source stays in localStorage from #j= / #d=
       location.hash = tab;
     });
   });
