@@ -220,6 +220,13 @@
     });
   }
 
+  function statusClass(status, runningClass) {
+    const s = status || 'idle';
+    if (s === 'running') return runningClass;
+    if (s === 'degraded' || s === 'stale') return 'red';
+    return 'yellow';
+  }
+
   function renderHome() {
     const state = cache.state; if (!state) return;
     document.getElementById('balance').textContent = money(state.balance);
@@ -231,14 +238,14 @@
     paper.hidden = state.mode !== 'PAPER';
 
     const agents = state.agents || [];
-    const running = agents.filter(a => a.status === 'running').length || agents.length;
+    const running = agents.filter(a => a.status === 'running').length;
     document.getElementById('agentCount').textContent = String(running);
     const car = document.getElementById('agentsCarousel');
     car.innerHTML = agents.map(a => `
       <button type="button" class="agent-card" data-agent="${esc(a.name)}">
         <div class="name">${esc(a.name)}</div>
         <div class="meta">${esc(a.subtitle || a.status || '')}</div>
-        <div class="status"><span class="pill ${a.status === 'running' ? 'green' : 'yellow'}">${esc(a.status || 'idle')}</span></div>
+        <div class="status"><span class="pill ${statusClass(a.status, 'green')}">${esc(a.status || 'idle')}</span></div>
       </button>`).join('') || '<div class="empty">Listening for graduations</div>';
     car.querySelectorAll('[data-agent]').forEach(el => {
       el.addEventListener('click', () => {
@@ -262,7 +269,7 @@
       <button type="button" class="agent-card compact" data-agent="${esc(a.name)}">
         <div class="name">${esc(a.name)}</div>
         <div class="meta">${esc(a.subtitle || '')}</div>
-        <div class="status"><span class="pill ${a.status === 'running' ? 'cyan' : 'yellow'}">${esc(a.status || '')}</span></div>
+        <div class="status"><span class="pill ${statusClass(a.status, 'cyan')}">${esc(a.status || '')}</span></div>
       </button>`).join('') || '<div class="empty">No agents</div>';
     list.querySelectorAll('[data-agent]').forEach(el => {
       el.addEventListener('click', () => {
